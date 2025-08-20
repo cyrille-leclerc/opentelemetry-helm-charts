@@ -18,6 +18,11 @@ dependencies:
     version: 0.130.1
     repository: https://open-telemetry.github.io/opentelemetry-helm-charts
     condition: opentelemetry-collector.enabled
+  - name: opentelemetry-collector
+    version: 0.130.1
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    condition: opentelemetry-collector-agent.enabled
+    alias: opentelemetry-collector-agent
   - name: jaeger
     version: 3.4.1
     repository: https://jaegertracing.github.io/helm-charts
