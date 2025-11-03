@@ -157,8 +157,20 @@ receivers:
     collection_interval: 10s
     scrapers:
         cpu:
+          system.cpu.utilization:
+            enabled: true
+          system.cpu.logical.count:
+            enabled: true
         load:
         memory:
+          system.memory.utilization:
+            enabled: true
+          system.memory.limit:
+            enabled: true
+        paging:
+          metrics:
+            system.paging.usage:
+              enabled: true
         disk:
         filesystem:
           exclude_mount_points:
@@ -198,6 +210,10 @@ receivers:
               - tracefs
             match_type: strict
         network:
+        system:
+          metrics:
+            system.uptime:
+              enabled: true
 {{- end }}
 
 {{- define "opentelemetry-collector.applyClusterMetricsConfig" -}}

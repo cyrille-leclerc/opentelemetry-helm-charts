@@ -31,7 +31,11 @@ data:
         collection_interval: 10s
         root_path: /hostfs
         scrapers:
-          cpu: null
+          cpu:
+            system.cpu.logical.count:
+              enabled: true
+            system.cpu.utilization:
+              enabled: true
           disk: null
           filesystem:
             exclude_fs_types:
@@ -71,8 +75,20 @@ data:
               - /var/lib/kubelet/*
               - /snap/*
           load: null
-          memory: null
+          memory:
+            system.memory.limit:
+              enabled: true
+            system.memory.utilization:
+              enabled: true
           network: null
+          paging:
+            metrics:
+              system.paging.usage:
+                enabled: true
+          system:
+            metrics:
+              system.uptime:
+                enabled: true
       jaeger:
         protocols:
           grpc:
