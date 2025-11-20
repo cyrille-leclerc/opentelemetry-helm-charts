@@ -780,6 +780,18 @@ components:
     podAnnotations:
       resource.opentelemetry.io/service.name: kafka
       resource.opentelemetry.io/service.namespace: opentelemetry-demo
+      io.opentelemetry.discovery.metrics/enabled: 'true'
+      io.opentelemetry.discovery.metrics/scraper: kafkametrics
+      io.opentelemetry.discovery.metrics/config: |
+          scrapers:
+            - brokers
+            - topics
+            - consumers
+          brokers: ["kafka:9092"] # FIXME use `host` instead of "kafka"`
+          protocol_version: "3.9.0"
+          cluster_alias: "webshop-cluster"
+          tls:
+            insecure: true
     env:
       - name: KAFKA_ADVERTISED_LISTENERS
         value: PLAINTEXT://kafka:9092
@@ -1111,6 +1123,8 @@ prometheus:
         # MongoDB
         # See https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/mongodbreceiver/metadata.yaml
         - database
+        # Kafka
+        - kafka.cluster.alias
     persistentVolume:
       enabled: false
     service:
