@@ -1,0 +1,52 @@
+
+opentelemetry-collector:
+  config:
+    extensions:
+      basicauth/grafana_cloud:
+        client_auth:
+          username: "${env:GRAFANA_CLOUD_INSTANCE_ID}"
+          password: "${env:GRAFANA_CLOUD_API_KEY}"
+    exporters:
+      otlphttp/grafana-cloud:
+        endpoint: "${env:GRAFANA_CLOUD_OTLP_ENDPOINT}"
+        auth:
+          authenticator: basicauth/grafana_cloud
+    service:
+      # for a reason I don't understand, we also have to declare the health_check extension here
+      extensions: [basicauth/grafana_cloud, health_check]
+      pipelines:
+        traces:
+          exporters: [otlphttp/grafana-cloud, otlp/jaeger, spanmetrics]
+        metrics:
+          exporters: [otlphttp/grafana-cloud, otlphttp/prometheus]
+        logs:
+          exporters: [otlphttp/grafana-cloud, opensearch]
+  extraEnvs:
+    - name: GRAFANA_CLOUD_INSTANCE_ID
+      valueFrom:
+        secretKeyRef:
+          name: grafana-cloud-auth
+          key: GRAFANA_CLOUD_INSTANCE_ID
+    - name: GRAFANA_CLOUD_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: grafana-cloud-auth
+          key: GRAFANA_CLOUD_API_KEY
+    - name: GRAFANA_CLOUD_OTLP_ENDPOINT
+      valueFrom:
+        secretKeyRef:
+          name: grafana-cloud-auth
+          key: GRAFANA_CLOUD_OTLP_ENDPOINT
+    - name: GRAFANA_CLOUD_BASIC_AUTH_HEADER
+      valueFrom:
+        secretKeyRef:
+          name: grafana-cloud-auth
+          key: GRAFANA_CLOUD_BASIC_AUTH_HEADER
+jaeger:
+  enabled: true
+
+prometheus:
+  enabled: true
+
+grafana:
+  enabled: true
