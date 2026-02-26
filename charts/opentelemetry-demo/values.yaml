@@ -904,7 +904,10 @@ components:
 opentelemetry-collector:
   enabled: true
   image:
-    repository: "otel/opentelemetry-collector-contrib"
+    repository: grafana/alloy-dev
+    tag: v1.13.2-devel-5bf4dcf # TODO: update to v1.14 once it's released
+  command:
+    name: "bin/otelcol"  # Override default command to use the required `otelcol` binary included in the grafana/alloy image
   fullnameOverride: otel-collector
   mode: daemonset
   presets:
