@@ -32,3 +32,4 @@ spec:
     env:
     - name: OTEL_EXPORTER_OTLP_ENDPOINT
       value: http://${OTEL_K8S_NODE_NAME}:4318
+

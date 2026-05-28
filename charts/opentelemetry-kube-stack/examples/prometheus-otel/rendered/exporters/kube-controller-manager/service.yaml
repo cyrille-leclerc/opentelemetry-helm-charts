@@ -22,3 +22,4 @@ spec:
   selector:
     component: kube-controller-manager
   type: ClusterIP
+
