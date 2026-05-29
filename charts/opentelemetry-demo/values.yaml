@@ -959,10 +959,11 @@ opentelemetry-collector:
         watch_observers: [k8s_observer]
         receivers:
           prometheus_simple:
-            rule: type == "pod" && annotations["prometheus.io/scrape"] == "true"  && labels["app.kubernetes.io/component"] != "opentelemetry-collector
+            rule: type == "pod" && annotations["prometheus.io/scrape"] == "true"  && labels["app.kubernetes.io/component"] != "opentelemetry-collector"
             config:
               metrics_path: '`"prometheus.io/path" in annotations ? annotations["prometheus.io/path"] : "/metrics"`'
               endpoint: '`endpoint`:`"prometheus.io/port" in annotations ? annotations["prometheus.io/port"] : "9090"`'
+              job_name: "kubernetes-pods"
     exporters:
       otlp/jaeger:
         endpoint: jaeger:4317
@@ -1141,6 +1142,23 @@ prometheus:
     enabled: false
   prometheus-pushgateway:
     enabled: false
+  scrapeConfigs:
+    kubernetes-api-servers:
+        enabled: false
+    kubernetes-nodes:
+        enabled: false
+    kubernetes-nodes-cadvisor:
+        enabled: false
+    prometheus-services:
+        enabled: false
+    kubernetes-service-endpoints:
+      enabled: false
+    kubernetes-service-endpoints-slow:
+      enabled: false
+    kubernetes-pods:
+      enabled: false
+    kubernetes-pods-slow:
+      enabled: false
   server:
     fullnameOverride: prometheus
     extraFlags:
