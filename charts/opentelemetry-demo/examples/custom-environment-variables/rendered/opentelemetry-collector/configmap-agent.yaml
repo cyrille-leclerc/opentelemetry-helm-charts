@@ -29,13 +29,13 @@ data:
       otlp/jaeger:
         endpoint: jaeger:4317
         sending_queue:
-          batch: null
+          batch: {}
         tls:
           insecure: true
       otlphttp/prometheus:
         endpoint: http://prometheus:9090/api/v1/otlp
         sending_queue:
-          batch: null
+          batch: {}
         tls:
           insecure: true
     extensions:
@@ -225,6 +225,19 @@ data:
           enabled: true
         watch_observers:
         - k8s_observer
+      receiver_creator/prometheus_annotations:
+        receivers:
+          prometheus_simple:
+            config:
+              endpoint: '`endpoint`:`"prometheus.io/port" in annotations ? annotations["prometheus.io/port"]
+                : "9090"`'
+              job_name: kubernetes-pods
+              metrics_path: '`"prometheus.io/path" in annotations ? annotations["prometheus.io/path"]
+                : "/metrics"`'
+            rule: type == "pod" && annotations["prometheus.io/scrape"] == "true"  && labels["app.kubernetes.io/component"]
+              != "opentelemetry-collector"
+        watch_observers:
+        - k8s_observer
       zipkin:
         endpoint: ${env:MY_POD_IP}:9411
     service:
@@ -259,6 +272,7 @@ data:
           - otlp
           - kafkametrics
           - spanmetrics
+          - receiver_creator/prometheus_annotations
           - receiver_creator/metrics
           - hostmetrics
           - kubeletstats
