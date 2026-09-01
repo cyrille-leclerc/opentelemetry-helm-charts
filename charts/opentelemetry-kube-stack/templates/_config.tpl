@@ -93,6 +93,10 @@ target allocator has a receiver to populate.
 {{- $config = (include "opentelemetry-kube-stack.collector.applyHostMetricsConfig" (dict "collector" $collector) | fromYaml) -}}
 {{- $_ := set $collector "config" $config }}
 {{- end }}
+{{- if .collector.presets.profiling.enabled }}
+{{- $config = (include "opentelemetry-kube-stack.collector.applyProfilingConfig" (dict "collector" $collector) | fromYaml) -}}
+{{- $_ := set $collector "config" $config }}
+{{- end }}
 {{- if .collector.presets.kubernetesAttributes.enabled }}
 {{- $config = (include "opentelemetry-kube-stack.collector.applyKubernetesAttributesConfig" (dict "collector" $collector) | fromYaml) -}}
 {{- $_ := set $collector "config" $config }}
@@ -202,6 +206,25 @@ receivers:
 {{- end }}
 {{- if and (dig "service" "pipelines" "traces" false $config) (not (has $processorName (dig "service" "pipelines" "traces" "processors" list $config))) }}
 {{- $_ := set $config.service.pipelines.traces "processors" (prepend ($config.service.pipelines.traces.processors | default list) $processorName | uniq)  }}
+{{- end }}
+{{- if dig "service" "pipelines" "profiles" false $config }}
+{{- if not (has $processorName (dig "service" "pipelines" "profiles" "processors" list $config)) }}
+{{- $_ := set $config.service.pipelines.profiles "processors" (prepend ($config.service.pipelines.profiles.processors | default list) $processorName | uniq)  }}
+{{- end }}
+{{- $processorBlock := index $config.processors $processorName }}
+{{- $podAssoc := $processorBlock.pod_association }}
+{{- $containerIdSource := dict "sources" (list (dict "from" "resource_attribute" "name" "container.id")) }}
+{{- $hasContainerId := false }}
+{{- range $podAssoc }}
+{{- range .sources }}
+{{- if and (eq .from "resource_attribute") (eq .name "container.id") }}
+{{- $hasContainerId = true }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if not $hasContainerId }}
+{{- $_ := set $processorBlock "pod_association" (prepend $podAssoc $containerIdSource) }}
+{{- end }}
 {{- end }}
 {{- $config | toYaml }}
 {{- end }}
@@ -361,6 +384,22 @@ receivers:
           metrics:
             system.uptime:
               enabled: true
+{{- end }}
+
+{{- define "opentelemetry-kube-stack.collector.applyProfilingConfig" -}}
+{{- $config := mustMergeOverwrite (dict "service" (dict "pipelines" (dict "profiles" (dict "receivers" list "exporters" list)))) (include "opentelemetry-kube-stack.collector.profilingConfig" .collector | fromYaml) .collector.config }}
+{{- $_ := set $config.service.pipelines.profiles "receivers" (append $config.service.pipelines.profiles.receivers "profiling" | uniq) }}
+{{- if not $config.service.pipelines.profiles.exporters }}
+{{- $_ := set $config.service.pipelines.profiles "exporters" (list "debug") }}
+{{- end }}
+{{- $config | toYaml }}
+{{- end }}
+
+{{- define "opentelemetry-kube-stack.collector.profilingConfig" -}}
+receivers:
+  profiling: {}
+exporters:
+  debug: {}
 {{- end }}
 
 {{- define "opentelemetry-kube-stack.collector.applyClusterMetricsConfig" -}}

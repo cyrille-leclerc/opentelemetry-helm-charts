@@ -40,8 +40,8 @@ spec:
   {{- if $collector.hostNetwork }}
   hostNetwork: {{ $collector.hostNetwork }}
   {{- end }}
-  {{- if $collector.hostPID }}
-  hostPID: {{ $collector.hostPID }}
+  {{- if or $collector.hostPID $collector.presets.profiling.enabled }}
+  hostPID: {{ or $collector.hostPID $collector.presets.profiling.enabled }}
   {{- end }}
   {{- if $collector.shareProcessNamespace }}
   shareProcessNamespace: {{ $collector.shareProcessNamespace }}
@@ -75,7 +75,23 @@ spec:
   {{- toYaml . | nindent 4}}
   {{- end }}
   securityContext:
-  {{- if and (not ($collector.securityContext)) ($collector.presets.logsCollection.storeCheckpoints) }}
+  {{- if and (not ($collector.securityContext)) ($collector.presets.profiling.enabled) }}
+    runAsUser: 0
+    runAsGroup: 0
+    privileged: false
+    allowPrivilegeEscalation: false
+    seccompProfile:
+      type: Unconfined
+    {{- if semverCompare ">= 1.30-0" $.Capabilities.KubeVersion.Version }}
+    appArmorProfile:
+      type: Unconfined
+    {{- end }}
+    seLinuxOptions:
+      type: spc_t
+    capabilities:
+      drop: [ALL]
+      add: ["BPF", "PERFMON", "SYS_PTRACE", "SYS_RESOURCE", "DAC_READ_SEARCH", "SYSLOG", "CHECKPOINT_RESTORE", "IPC_LOCK"]
+  {{- else if and (not ($collector.securityContext)) ($collector.presets.logsCollection.storeCheckpoints) }}
     runAsUser: 0
     runAsGroup: 0
   {{- else -}}
@@ -85,9 +101,14 @@ spec:
   podSecurityContext:
   {{- toYaml . | nindent 4}}
   {{- end }}
-  {{- with $collector.podAnnotations }}
+  {{- if or ($collector.podAnnotations) (and (not $collector.securityContext) ($collector.presets.profiling.enabled) (semverCompare "< 1.30-0" $.Capabilities.KubeVersion.Version)) }}
   podAnnotations:
+  {{- with $collector.podAnnotations }}
   {{- toYaml . | nindent 4}}
+  {{- end }}
+  {{- if and (not $collector.securityContext) ($collector.presets.profiling.enabled) (semverCompare "< 1.30-0" $.Capabilities.KubeVersion.Version) }}
+    container.apparmor.security.beta.kubernetes.io/otc-container: unconfined
+  {{- end }}
   {{- end }}
   {{- with $collector.targetAllocator }}
   targetAllocator:
@@ -135,7 +156,7 @@ spec:
   {{- toYaml . | nindent 4}}
   {{- end }}
   {{- end }}
-  {{- if or ($collector.presets.logsCollection.enabled) ($collector.presets.logsCollection.storeCheckpoints) ($collector.presets.hostMetrics.enabled) ($collector.volumeMounts) }}
+  {{- if or ($collector.presets.logsCollection.enabled) ($collector.presets.logsCollection.storeCheckpoints) ($collector.presets.hostMetrics.enabled) ($collector.presets.profiling.enabled) ($collector.volumeMounts) }}
   volumeMounts:
   {{- if $collector.presets.logsCollection.enabled }}
   - name: varlogpods
@@ -154,6 +175,11 @@ spec:
     mountPath: /hostfs
     readOnly: true
     mountPropagation: HostToContainer
+  {{- end }}
+  {{- if $collector.presets.profiling.enabled }}
+  - name: tracefs
+    mountPath: /sys/kernel/tracing
+    readOnly: true
   {{- end }}
   {{- with $collector.volumeMounts }}
   {{- tpl (toYaml .) $merged | nindent 2 }}
@@ -206,7 +232,7 @@ spec:
   tolerations:
   {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- if or ($collector.presets.logsCollection.enabled) ($collector.presets.logsCollection.storeCheckpoints) ($collector.presets.hostMetrics.enabled) ($collector.volumes) }}
+  {{- if or ($collector.presets.logsCollection.enabled) ($collector.presets.logsCollection.storeCheckpoints) ($collector.presets.hostMetrics.enabled) ($collector.presets.profiling.enabled) ($collector.volumes) }}
   volumes:
   {{- if $collector.presets.logsCollection.enabled }}
   - name: varlogpods
@@ -226,6 +252,11 @@ spec:
   - name: hostfs
     hostPath:
       path: /
+  {{- end }}
+  {{- if $collector.presets.profiling.enabled }}
+  - name: tracefs
+    hostPath:
+      path: /sys/kernel/tracing
   {{- end }}
   {{- with $collector.volumes }}
   {{- tpl (toYaml .) $merged | nindent 2 }}
