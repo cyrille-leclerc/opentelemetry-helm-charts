@@ -3,7 +3,7 @@
 apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
 metadata:
-  name: example-daemon
+  name: example-profiler
   namespace: default
   labels:
     helm.sh/chart: opentelemetry-kube-stack-0.20.8
@@ -16,84 +16,48 @@ spec:
   config:
     exporters:
       debug: {}
-    extensions:
-      k8s_observer:
-        auth_type: serviceAccount
-        node: ${env:K8S_NODE_NAME}
+      otlp_http:
+        endpoint: http://example-otelcol-otlp-http.default.svc.cluster.local:4318
     processors:
-      batch:
-        send_batch_max_size: 1500
-        send_batch_size: 1000
-        timeout: 1s
-      resource/hostname:
-        attributes:
-        - action: insert
-          from_attribute: k8s.node.name
-          key: host.name
-      resource_detection/env:
-        detectors:
-        - env
-        - k8s_api
-        override: false
-        timeout: 2s
+      cumulativetodelta: {}
     receivers:
-      otlp:
-        protocols:
-          grpc:
-            endpoint: 0.0.0.0:4317
-          http:
-            endpoint: 0.0.0.0:4318
-      receiver_creator/logs:
-        discovery:
-          default_annotations:
-            io.opentelemetry.discovery.logs/enabled: "true"
-          enabled: true
-        watch_observers:
-        - k8s_observer
+      profiling: {}
     service:
-      extensions:
-      - k8s_observer
       pipelines:
-        logs:
+        profiles:
           exporters:
-          - debug
-          processors:
-          - resource_detection/env
-          - resource/hostname
-          - batch
+          - otlp_http
           receivers:
-          - otlp
-          - receiver_creator/logs
-        metrics:
-          exporters:
-          - debug
-          processors:
-          - resource_detection/env
-          - resource/hostname
-          - batch
-          receivers:
-          - otlp
-        traces:
-          exporters:
-          - debug
-          processors:
-          - resource_detection/env
-          - resource/hostname
-          - batch
-          receivers:
-          - otlp
+          - profiling
   imagePullPolicy: IfNotPresent
   upgradeStrategy: automatic
+  hostPID: true
   terminationGracePeriodSeconds: 30
   resources:
     limits:
-      cpu: 200m
-      memory: 500Mi
+      cpu: 250m
+      memory: 128Mi
     requests:
-      cpu: 100m
-      memory: 250Mi
+      cpu: 250m
+      memory: 64Mi
   securityContext:
-    {}
+    runAsUser: 0
+    runAsGroup: 0
+    privileged: false
+    allowPrivilegeEscalation: false
+    seccompProfile:
+      type: Unconfined
+    seLinuxOptions:
+      type: spc_t
+    capabilities:
+      drop: [ALL]
+      add: ["BPF", "PERFMON", "SYS_PTRACE", "SYS_RESOURCE", "DAC_READ_SEARCH", "SYSLOG", "CHECKPOINT_RESTORE", "IPC_LOCK"]
+  podAnnotations:
+    container.apparmor.security.beta.kubernetes.io/otc-container: unconfined
+  volumeMounts:
+  - name: tracefs
+    mountPath: /sys/kernel/tracing
+    readOnly: true
   env:
   - name: K8S_NODE_NAME 
     valueFrom:
@@ -124,3 +88,8 @@ spec:
         fieldPath: status.podIP
   - name: OTEL_RESOURCE_ATTRIBUTES
     value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),k8s.cluster.name=unknown_k8s_cluster"
+  
+  volumes:
+  - name: tracefs
+    hostPath:
+      path: /sys/kernel/tracing

@@ -1,0 +1,31 @@
+# Demonstrates the `presets.profiling` preset, which adds the profiling receiver and a
+# `profiles` pipeline to collect eBPF-based continuous profiling data.
+#
+# The profiling receiver requires elevated capabilities and hostPID, so it is run here on its
+# own dedicated daemonset collector (`profiler`) using the `opentelemetry-collector-ebpf-profiler`
+# distribution, rather than being enabled on the general-purpose `daemon` collector that already
+# handles logs/metrics/traces. See the `presets.profiling` comment in values.yaml for details.
+defaultCRConfig:
+  config:
+    processors:
+      cumulativetodelta: {}
+    exporters:
+      otlp_http:
+        endpoint: "http://example-otelcol-otlp-http.default.svc.cluster.local:4318"
+collectors:
+  daemon:
+    enabled: false
+  profiler:
+    enabled: true
+    suffix: profiler
+    mode: daemonset
+    image:
+      repository: otel/opentelemetry-collector-ebpf-profiler
+    presets:
+      profiling:
+        enabled: true
+    config:
+      service:
+        pipelines:
+          profiles:
+            exporters: [otlp_http]

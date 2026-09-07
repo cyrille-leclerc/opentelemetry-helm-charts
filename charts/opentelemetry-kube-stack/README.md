@@ -125,6 +125,20 @@ By default, the daemonset collector will load in the daemon_scrape_configs.yaml 
 **`prometheus-node-exporter` subchart**: when installed via the top-level `nodeExporter.enabled: true` flag, the subchart creates its own `ServiceMonitor` by default.
 If a target allocator picks it up and `presets.prometheus.nodeExporter.enabled=true` or `scrape_configs_file=daemon_scrape_configs.yaml`, then node-exporter metrics are scraped twice.
 
+### Profiling
+
+The `presets.profiling` preset adds the profiling receiver and a `profiles` pipeline to a collector, enabling
+collection of eBPF-based continuous profiling data.
+
+> [!WARNING]
+> The profiling receiver requires elevated capabilities and hostPID, so it should be used with a dedicated
+> collector distribution (e.g. [`opentelemetry-collector-ebpf-profiler`](https://github.com/open-telemetry/opentelemetry-collector-releases/tree/main/distributions/otelcol-ebpf-profiler))
+> rather than the general-purpose k8s distribution. This avoids granting elevated privileges to the same
+> collector that handles metrics, traces, and logs.
+
+See the [`daemonset-profiling`](examples/daemonset-profiling/values.yaml) example for a dedicated daemonset
+collector running the `opentelemetry-collector-ebpf-profiler` image with `presets.profiling` enabled.
+
 ### Image versioning
 
 The appVersion of the chart is aligned to the latest image version of the operator. Images are upgraded within the chart manually by setting the image tag to the latest release of each image used. This will be the latest patch release for the chart's appVersion. example:
